@@ -1,0 +1,13 @@
+[project]
+name = "festa-ifc-blumenau"
+version = "0.1.0"
+description = "Sistema de organizacao da festa do IFC Campus Blumenau"
+requires-python = ">=3.10"
+dependencies = [
+    "SQLAlchemy>=2.0,<3.0",
+    "PyMySQL>=1.1,<2.0",
+    "streamlit>=1.49,<2.0",
+]
+
+[tool.uv]
+package = false
