@@ -1,4 +1,36 @@
-import os
+import streamlit as st
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from urllib.parse import quote_plus
+
+# Pega as configurações do secrets.toml (local ou nuvem)
+config = st.secrets["database"]
+
+url = (
+    f"mysql+pymysql://{config['user']}:"
+    f"{quote_plus(config['password'])}@"
+    f"{config['host']}:{config['port']}/"
+    f"{config['database']}"
+)
+
+# Cria o engine com suporte a reconexão automática
+engine = create_engine(url, pool_pre_ping=True)
+
+# Fábrica de sessões para o SQLAlchemy ORM
+SessionLocal = sessionmaker(
+    bind=engine,
+    autoflush=False,
+    autocommit=False
+)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+''' import os
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -27,4 +59,4 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 def initialize_database() -> None:
     from src import models  # noqa: F401
 
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine) '''

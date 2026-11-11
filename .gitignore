@@ -1,9 +1,24 @@
-__pycache__/
-*.py[cod]
+# Ambientes virtuais
+venv/
+env/
+ENV/
 .venv/
-.env
+
+# Configurações locais de segredos (NUNCA enviar senhas para o GitHub!)
 .streamlit/secrets.toml
+
+# Arquivos de banco de dados locais de teste
 *.db
 *.sqlite
 *.sqlite3
+
+# Cache e arquivos compilados do Python
+__pycache__/
+*.py[cod]
+*$py.class
 .pytest_cache/
+
+# Configurações do VSCode e sistema operacional
+.vscode/
+.DS_Store
+Thumbs.db

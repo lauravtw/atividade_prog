@@ -1,4 +1,33 @@
-from sqlalchemy import Float, ForeignKey, String, Table, Column
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy.orm import relationship
+
+Base = declarative_base()
+
+class Fornecedor(Base):
+    __tablename__ = 'fornecedores'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(100), nullable=False)
+    contato = Column(String(100))
+
+class Pessoa(Base):
+    __tablename__ = 'pessoas'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(100), nullable=False)
+    tipo = Column(String(50))  # Aluno, Pai de Aluno, Servidor
+
+class Alimento(Base):
+    __tablename__ = 'alimentos'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(100), nullable=False)
+    descricao = Column(String(255))
+    preco_venda = Column(Float, nullable=False)
+    
+    # Chave estrangeira para o fornecedor do insumo doado
+    fornecedor_id = Column(Integer, ForeignKey('fornecedores.id'))
+    fornecedor = relationship("Fornecedor")
+
+'''from sqlalchemy import Float, ForeignKey, String, Table, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -59,3 +88,4 @@ class Volunteer(Base):
     category: Mapped[str] = mapped_column(String(30))
     role: Mapped[str] = mapped_column(String(120), default="")
     contact: Mapped[str] = mapped_column(String(120), default="")
+'''

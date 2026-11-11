@@ -1,4 +1,207 @@
-import os
+import streamlit as st
+from database import SessionLocal, engine
+from models import Base, Alimento, Fornecedor, Pessoa
+
+# Garante que as tabelas existem no banco de dados
+Base.metadata.create_all(bind=engine)
+
+# Função para obter a sessão do banco
+def get_db():
+    return SessionLocal()
+
+st.title("🎉 Gestão da Festa - IFC Campus Blumenau")
+
+# Menu lateral de navegação
+menu = ["Início", "Alimentos", "Fornecedores", "Pessoas"]
+escolha = st.sidebar.selectbox("Navegação", menu)
+
+db = get_db()
+
+# --- PÁGINA: INÍCIO ---
+if escolha == "Início":
+    st.header("Bem-vindo ao sistema de organização da festa!")
+    st.write("Use o menu lateral para gerenciar os alimentos vendidos, os fornecedores de insumos doados e as pessoas envolvidas (alunos, pais e servidores).")
+    
+    # Métricas rápidas
+    total_alimentos = db.query(Alimento).count()
+    total_fornecedores = db.query(Fornecedor).count()
+    total_pessoas = db.query(Pessoa).count()
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Alimentos Cadastrados", total_alimentos)
+    col2.metric("Fornecedores", total_fornecedores)
+    col3.metric("Pessoas Envolvidas", total_pessoas)
+
+# --- PÁGINA: ALIMENTOS ---
+elif escolha == "Alimentos":
+    st.header("🍔 Gerenciamento de Alimentos")
+    
+    sub_menu = ["Cadastrar", "Listar / Atualizar / Excluir"]
+    escolha_sub = st.radio("Ação", sub_menu, horizontal=True)
+    
+    if escolha_sub == "Cadastrar":
+        st.subheader("Cadastrar Novo Alimento")
+        with st.form("form_alimento"):
+            nome = st.text_input("Nome do Alimento")
+            descricao = st.text_input("Descrição / Insumos")
+            preco_venda = st.number_input("Preço de Venda (R$)", min_value=0.0, format="%.2f")
+            
+            # Buscar fornecedores para associar
+            fornecedores = db.query(Fornecedor).all()
+            fornecedor_dict = {f.nome: f.id for f in fornecedores}
+            fornecedor_nome = st.selectbox("Fornecedor do Insumo", list(fornecedor_dict.keys()) if fornecedores else ["Nenhum"])
+            
+            submitted = st.form_submit_button("Salvar Alimento")
+            if submitted:
+                if nome:
+                    fid = fornecedor_dict.get(fornecedor_nome) if fornecedores else None
+                    novo_alimento = Alimento(nome=nome, descricao=descricao, preco_venda=preco_venda, fornecedor_id=fid)
+                    db.add(novo_alimento)
+                    db.commit()
+                    st.success(f"Alimento '{nome}' cadastrado com sucesso!")
+                else:
+                    st.error("O nome do alimento é obrigatório.")
+                    
+    elif escolha_sub == "Listar / Atualizar / Excluir":
+        st.subheader("Lista de Alimentos")
+        alimentos = db.query(Alimento).all()
+        
+        if not alimentos:
+            st.info("Nenhum alimento cadastrado ainda.")
+        else:
+            for a in alimentos:
+                with st.expander(f"{a.nome} - R$ {a.preco_venda:.2f}"):
+                    with st.form(f"form_alt_alimento_{a.id}"):
+                        novo_nome = st.text_input("Nome", value=a.nome, key=f"nome_{a.id}")
+                        nova_desc = st.text_input("Descrição", value=a.descricao or "", key=f"desc_{a.id}")
+                        novo_preco = st.number_input("Preço (R$)", value=float(a.preco_venda), min_value=0.0, key=f"preco_{a.id}")
+                        
+                        col_atualizar, col_excluir = st.columns(2)
+                        atualizar = col_atualizar.form_submit_button("Atualizar")
+                        excluir = col_excluir.form_submit_button("Excluir")
+                        
+                        if atualizar:
+                            a.nome = novo_nome
+                            a.descricao = nova_desc
+                            a.preco_venda = novo_preco
+                            db.commit()
+                            st.success("Alimento atualizado!")
+                            st.rerun()
+                        
+                        if excluir:
+                            db.delete(a)
+                            db.commit()
+                            st.warning("Alimento excluído!")
+                            st.rerun()
+
+# --- PÁGINA: FORNECEDORES ---
+elif escolha == "Fornecedores":
+    st.header("🤝 Gerenciamento de Fornecedores")
+    
+    sub_menu = ["Cadastrar", "Listar / Atualizar / Excluir"]
+    escolha_sub = st.radio("Ação", sub_menu, horizontal=True, key="radio_forn")
+    
+    if escolha_sub == "Cadastrar":
+        st.subheader("Cadastrar Novo Fornecedor")
+        with st.form("form_fornecedor"):
+            nome = st.text_input("Nome do Fornecedor")
+            contato = st.text_input("Contato (Telefone / E-mail)")
+            
+            submitted = st.form_submit_button("Salvar Fornecedor")
+            if submitted:
+                if nome:
+                    novo_forn = Fornecedor(nome=nome, contato=contato)
+                    db.add(novo_forn)
+                    db.commit()
+                    st.success(f"Fornecedor '{nome}' cadastrado com sucesso!")
+                else:
+                    st.error("O nome é obrigatório.")
+                    
+    elif escolha_sub == "Listar / Atualizar / Excluir":
+        st.subheader("Lista de Fornecedores")
+        fornecedores = db.query(Fornecedor).all()
+        
+        if not fornecedores:
+            st.info("Nenhum fornecedor cadastrado.")
+        else:
+            for f in fornecedores:
+                with st.expander(f"{f.nome} (Contato: {f.contato})"):
+                    with st.form(f"form_alt_forn_{f.id}"):
+                        novo_nome = st.text_input("Nome", value=f.nome, key=f"fnome_{f.id}")
+                        novo_contato = st.text_input("Contato", value=f.contato or "", key=f"fcont_{f.id}")
+                        
+                        col1, col2 = st.columns(2)
+                        atualizar = col1.form_submit_button("Atualizar")
+                        excluir = col2.form_submit_button("Excluir")
+                        
+                        if atualizar:
+                            f.nome = novo_nome
+                            f.contato = novo_contato
+                            db.commit()
+                            st.success("Fornecedor atualizado!")
+                            st.rerun()
+                        if excluir:
+                            db.delete(f)
+                            db.commit()
+                            st.warning("Fornecedor excluído!")
+                            st.rerun()
+
+# --- PÁGINA: PESSOAS ---
+elif escolha == "Pessoas":
+    st.header("👥 Gerenciamento de Pessoas (Trabalhadores da Festa)")
+    
+    sub_menu = ["Cadastrar", "Listar / Atualizar / Excluir"]
+    escolha_sub = st.radio("Ação", sub_menu, horizontal=True, key="radio_pes")
+    
+    if escolha_sub == "Cadastrar":
+        st.subheader("Cadastrar Nova Pessoa")
+        with st.form("form_pessoa"):
+            nome = st.text_input("Nome da Pessoa")
+            tipo = st.selectbox("Categoria", ["Aluno", "Pai de Aluno", "Servidor"])
+            
+            submitted = st.form_submit_button("Salvar Pessoa")
+            if submitted:
+                if nome:
+                    nova_pessoa = Pessoa(nome=nome, tipo=tipo)
+                    db.add(nova_pessoa)
+                    db.commit()
+                    st.success(f"Pessoa '{nome}' cadastrada com sucesso!")
+                else:
+                    st.error("O nome é obrigatório.")
+                    
+    elif escolha_sub == "Listar / Atualizar / Excluir":
+        st.subheader("Lista de Pessoas")
+        pessoas = db.query(Pessoa).all()
+        
+        if not pessoas:
+            st.info("Nenhuma pessoa cadastrada.")
+        else:
+            p_por_tipo = {}
+            for p in pessoas:
+                with st.expander(f"{p.nome} ({p.tipo})"):
+                    with st.form(f"form_alt_pes_{p.id}"):
+                        novo_nome = st.text_input("Nome", value=p.nome, key=f"pnome_{p.id}")
+                        novo_tipo = st.selectbox("Categoria", ["Aluno", "Pai de Aluno", "Servidor"], index=["Aluno", "Pai de Aluno", "Servidor"].index(p.tipo) if p.tipo in ["Aluno", "Pai de Aluno", "Servidor"] else 0, key=f"ptipo_{p.id}")
+                        
+                        col1, col2 = st.columns(2)
+                        atualizar = col1.form_submit_button("Atualizar")
+                        excluir = col2.form_submit_button("Excluir")
+                        
+                        if atualizar:
+                            p.nome = novo_nome
+                            p.tipo = novo_tipo
+                            db.commit()
+                            st.success("Pessoa atualizada!")
+                            st.rerun()
+                        if excluir:
+                            db.delete(p)
+                            db.commit()
+                            st.warning("Pessoa excluída!")
+                            st.rerun()
+
+db.close()
+
+'''import os
 import sys
 from pathlib import Path
 
@@ -341,4 +544,4 @@ elif page == "Insumos":
 elif page == "Fornecedores/doadores":
     supplier_page()
 else:
-    volunteer_page()
+    volunteer_page() '''
